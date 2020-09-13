@@ -1,56 +1,3 @@
-/*use crate::player;
-use crate::online_player;
-use crate::level;
-use crate::shader;
-use crate::network;
-use std::collections::HashMap;
-
-pub struct Game {
-
-    player: player::Player,
-    players: online_player::Player,
-    level: level::Level,
-    network: network::Network,
-}
-
-impl Game {
-
-    pub fn new() -> Game {
-
-        let mut player = player::Player::new();
-        let mut players = online_player::Player::new();
-        let level = level::Level::new();
-
-        let mut network = network::Network::quick_new();
-
-        Game { player, players, level, network }
-    }
-
-    pub fn init_peer(&mut self) {
-
-        self.network = network::Network::new();
-    }
-
-    pub fn check_updates(&mut self) {
-
-        self.players.update(&self.network.recieve());
-    }
-
-    pub fn update(&mut self, keys: &Vec<HashMap<usize, bool>>) {
-
-        self.player.inputs(keys);
-        self.network.send_inputs(&self.player.online_state_buffer());
-        self.player.update();
-    }
-
-    pub fn render(&self, shader: &shader::Program) {
-
-        self.player.render(shader);
-        self.players.render(shader);
-        self.level.render(shader);
-    }
-}*/
-
 use crate::mario;
 use crate::online_mario;
 use crate::level;
@@ -78,7 +25,6 @@ impl Game {
     pub fn new() -> Game {
 
         let mut player = mario::Player::new();
-        //let mut players = online_mario::Player::new();
         let mut players: HashMap<std::net::SocketAddr, online_mario::Player> = HashMap::new();
         let mut level = level::Level::new();
         let mut camera = camera::Camera::new();
@@ -110,15 +56,104 @@ impl Game {
         self.players.insert(socket, online_mario::Player::new());
     }
 
+    pub fn add_player_fast(&mut self, socket_addr: SocketAddr) {
+
+        self.players.insert(socket_addr, online_mario::Player::new());
+    }
+
+    pub fn request_sync(&mut self, socket_addr: SocketAddr) {
+
+        let mut buffer: [u8; 16] = [0; 16];
+        buffer[0] = 245;
+        self.network.send_inputs(&buffer, socket_addr.clone());
+        println!("Request to sync sent");
+    }
+
     pub fn check_updates(&mut self, sound_manager: &sound::Sound_Manager) {
 
         let mut come_through = self.network.recieve();
         if come_through.recieve {
         
+            //Update world
             if come_through.buffer[0] == 244 {
                 self.online_mouse_update(&come_through.buffer);
             }
+            else if come_through.buffer[0] == 245 {
+
+                println!("HOST: Recieved sync request");
+
+                //Send sync info
+                let mut buffer: [u8; 16] = come_through.buffer;
+                buffer[0] = 246;
+                let mut new_socket = come_through.from_socket.ip().to_string();
+                
+                let new_socket_parts: Vec<&str> = new_socket.split(".").collect();
+                //let new_socket_length = b.len();
+                //buffer[1] = new_socket_length as u8;
+                let mut pos = 1;
+                for part in new_socket_parts {
+                    buffer[pos] = part.parse::<u8>().unwrap();
+                    pos += 1;
+                }
+
+                println!("{:?}", buffer);
+
+                for socket in self.players.keys() {
+                    //Dont send it init sync back to person who wants sync
+                    if socket.ip() != come_through.from_socket.ip() {
+                        self.network.send_inputs(&buffer, socket.clone());
+                    }
+                }
+
+                let mut buffer_two: [u8; 16] = [0; 16];
+                buffer_two[0] = 247;
+                buffer_two[1] = (((self.player.get_position_x().floor() as usize) & 0xfff0) / 16) as u8;
+                buffer_two[2] = ((self.player.get_position_x().floor() as usize) % 16) as u8;
+                buffer_two[3] = (((self.player.get_position_y().floor() as usize) & 0xfff0) / 16) as u8;
+                buffer_two[4] = ((self.player.get_position_y().floor() as usize) % 16) as u8;
+                self.network.send_inputs(&buffer_two, come_through.from_socket.clone());
+
+                if !self.players.contains_key(&come_through.from_socket) {
+
+                    self.players.insert(come_through.from_socket, online_mario::Player::new());
+                }
+            }
+            else if come_through.buffer[0] == 246 {
+
+                println!("Resyncing with other players");
+                let socket_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(come_through.buffer[1], come_through.buffer[2], come_through.buffer[3], come_through.buffer[4])), 3456);
+
+                println!("Socket that needs syncing with {}", socket_addr);
+
+                let mut buffer_two: [u8; 16] = [0; 16];
+                buffer_two[0] = 247;
+                buffer_two[1] = (((self.player.get_position_x().floor() as usize) & 0xfff0) / 16) as u8;
+                buffer_two[2] = ((self.player.get_position_x().floor() as usize) % 16) as u8;
+                buffer_two[3] = (((self.player.get_position_y().floor() as usize) & 0xfff0) / 16) as u8;
+                buffer_two[4] = ((self.player.get_position_y().floor() as usize) % 16) as u8;
+                self.network.send_inputs(&buffer_two, socket_addr.clone());
+
+                if !self.players.contains_key(&socket_addr) {
+
+                    self.players.insert(socket_addr, online_mario::Player::new());
+                }
+            }
+            else if come_through.buffer[0] == 247 {
+
+                println!("Sync confirmed");
+                let mut pos_x: u32 = (((come_through.buffer[1] as u32) * 16_u32) + (come_through.buffer[2] as u32));
+                let mut pos_y: u32 = (((come_through.buffer[3] as u32) * 16_u32) + (come_through.buffer[4] as u32));
+
+                if self.players.contains_key(&come_through.from_socket) {
+
+                    self.players.get_mut(&come_through.from_socket).unwrap().update_pos(pos_x, pos_y);
+                }
+                else {
+                    self.players.insert(come_through.from_socket, online_mario::Player::new_pos(pos_x, pos_y));
+                }
+            }
             else {
+                //Game Update
                 if self.players.contains_key(&come_through.from_socket) {
                     self.players.get_mut(&come_through.from_socket).unwrap().set_key_state(&come_through.buffer);
                     self.players.get_mut(&come_through.from_socket).unwrap().update(&self.level.get_tiles(), sound_manager);

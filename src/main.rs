@@ -5,6 +5,7 @@ extern crate failure;
 extern crate image;
 extern crate cgmath;
 extern crate rodio;
+extern crate ipconfig;
 
 mod debug;
 pub mod shader;
@@ -23,6 +24,7 @@ mod sound;
 mod online_mario;
 mod menu;
 mod menu_network;
+mod text;
 
 use failure::err_msg;
 use crate::resources::Resources;
@@ -141,7 +143,7 @@ fn run() -> Result<(), failure::Error> {
                 sdl2::event::Event::Quit {..} => break 'main,
                 sdl2::event::Event::KeyDown { keycode: Some(sdl2::keyboard::Keycode::Escape), .. } => break 'main,
                 sdl2::event::Event::KeyDown { keycode: Some(sdl2::keyboard::Keycode::P), .. } => {
-                    match program_state {
+                    /*match program_state {
                         ProgramState::MENU => {
                             net_game.init_peer();
                             program_state = ProgramState::NETWORK_GAME;
@@ -150,7 +152,7 @@ fn run() -> Result<(), failure::Error> {
                             net_game.add_player();
                         }
                         _ => {},
-                    }
+                    }*/
                 },
                 sdl2::event::Event::KeyDown { keycode: Some(sdl2::keyboard::Keycode::E), .. } => {
                     if current_tile < 5 {
@@ -223,6 +225,8 @@ fn run() -> Result<(), failure::Error> {
                     }
                     else if state == 1 {
                         program_state = ProgramState::NETWORK_GAME;
+                        net_game.add_player_fast(net_menu.get_ip());
+                        net_game.request_sync(net_menu.get_ip());
                     }
                     else if state == 2 {
                         program_state = ProgramState::NETWORK_GAME;
@@ -231,7 +235,7 @@ fn run() -> Result<(), failure::Error> {
                         program_state = ProgramState::MENU;
                     }
                 }else {
-                    net_menu.render(&quad_program);
+                    net_menu.render(&quad_program, &level_program);
                 }
             },
             ProgramState::OPTIONS => {

@@ -54,6 +54,26 @@ impl Player {
         Player { pos_x: 50.0, pos_y: 60.0, vel_x: 0.0, vel_y: 0.0, quad, right, left, jump, frame: 0.0, width: 16, height: 24, grounded: false, facing: true }
     }
 
+    pub fn new_pos(t_pos_x: u32, t_pos_y: u32) -> Player {
+
+        let quad = quad::Quad::new([0.0, 0.0], [48.0, 48.0], "assets/textures/mario_test.png".to_string());
+
+        let mut right: bool = false;
+        let mut left: bool = false;
+        let mut jump: bool = false;
+
+        let mut pos_x: f32 = t_pos_x as f32;
+        let mut pos_y: f32 = t_pos_y as f32;
+
+        Player { pos_x, pos_y, vel_x: 0.0, vel_y: 0.0, quad, right, left, jump, frame: 0.0, width: 16, height: 24, grounded: false, facing: true }
+    }
+
+    pub fn update_pos(&mut self, pos_x: u32, pos_y: u32) {
+
+        self.pos_x = pos_x as f32;
+        self.pos_y = pos_y as f32;
+    }
+
     pub fn animation(&mut self) {
 
         if self.grounded {

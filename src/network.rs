@@ -1,5 +1,6 @@
-use std::net::{UdpSocket, SocketAddr, IpAddr, Ipv4Addr};
+use std::net::{UdpSocket, SocketAddr, IpAddr, Ipv4Addr, SocketAddrV4};
 use std::io::{self, Read, Error, stdin, stdout, Write, ErrorKind};
+use ipconfig;
 
 pub struct Network_Packet {
 
@@ -17,7 +18,45 @@ impl Network {
 
     pub fn quick_new() -> Network {
 
-        let socket = UdpSocket::bind("127.0.0.1:3400").expect("couldn't bind to address");
+        let mut socket_addr = SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), 8080);
+
+        /*let s = socket_addr.ip().to_string();
+        let b: Vec<&str> = s.split(".").collect();
+        println!("{}", b.len());
+        for n in b {
+            println!("{:?}", n.parse::<u8>().unwrap());
+        }*/
+
+        'find: for adapter in ipconfig::get_adapters().unwrap() {
+
+            match adapter.oper_status() {
+                ipconfig::OperStatus::IfOperStatusUp => {
+                    for addr in adapter.ip_addresses() {
+                        if addr.is_ipv4() {
+                            match addr {
+                                IpAddr::V4(n) => {
+                                    if !n.is_private() {
+                                        //socket_addr.set_ip(*n);
+                                        //socket_addr.set_port(3456);
+                                        //break 'find;
+                                    }
+                                    else {
+                                        socket_addr.set_ip(*n);
+                                        socket_addr.set_port(3456);
+                                    }
+                                },
+                                _ => {},
+                            }
+                        }
+                    }
+                },
+                _ => {},
+            }
+        }
+
+        println!("Your ip {}", socket_addr);
+
+        let mut socket = UdpSocket::bind(socket_addr).expect("couldn't bind to address");
         socket.set_nonblocking(true).expect("Failed to enter non-blocking mode");
 
         Network { socket }
