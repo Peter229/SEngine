@@ -36,9 +36,9 @@ impl Network {
                             match addr {
                                 IpAddr::V4(n) => {
                                     if !n.is_private() {
-                                        //socket_addr.set_ip(*n);
-                                        //socket_addr.set_port(3456);
-                                        //break 'find;
+                                        socket_addr.set_ip(*n);
+                                        socket_addr.set_port(3456);
+                                        break 'find;
                                     }
                                     else {
                                         socket_addr.set_ip(*n);
