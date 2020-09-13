@@ -211,7 +211,7 @@ impl Player {
         if self.vel_x > 0.0 {
 
             let right = (((self.pos_x.floor() as u32 + 7_u32) as usize) & 0xfff0) / 16;
-            let top = (((self.pos_y.floor() as u32) as usize) & 0xfff0) / 16;
+            let top = (((self.pos_y.floor() as u32 + 4_u32) as usize) & 0xfff0) / 16;
             let bottom = (((self.pos_y.floor() as u32 - 8_u32) as usize) & 0xfff0) / 16;
 
             if tiles[64 * right + bottom] > 0 {
@@ -232,11 +232,15 @@ impl Player {
                     self.vel_x = 0.0;
                 }
             }
+            if tiles[64 * right + top] > 0 {
+                self.pos_x = ((right * 16) - 8) as f32;
+                self.vel_x = 0.0;
+            }
         }
         else if self.vel_x < 0.0 {
 
             let left = (((self.pos_x.floor() as u32 - 8_u32) as usize) & 0xfff0) / 16;
-            let top = (((self.pos_y.floor() as u32) as usize) & 0xfff0) / 16;
+            let top = (((self.pos_y.floor() as u32 + 4_u32) as usize) & 0xfff0) / 16;
             let bottom = (((self.pos_y.floor() as u32 - 8_u32) as usize) & 0xfff0) / 16;
 
             if tiles[64 * left + bottom] > 0 {
@@ -256,6 +260,10 @@ impl Player {
                     self.pos_x = (((left + 1) * 16) + 8) as f32;
                     self.vel_x = 0.0;
                 }
+            }
+            if tiles[64 * left + top] > 0 {
+                self.pos_x = (((left + 1) * 16) + 8) as f32;
+                self.vel_x = 0.0;
             }
         }
     }
